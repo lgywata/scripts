@@ -6,7 +6,7 @@ try:
     # remote: ywata@master:/tmp
     remote = login + "@master:/tmp/apps"
     # use absolute path
-    localdir = raw_input("Enter the directory you want to be rsynced (empty entry will use ./): ")
+    localdir = raw_input("Enter local dir [./]: ")
 
     if not localdir:
         localdir = "./"
@@ -17,12 +17,19 @@ try:
     from subprocess import call
     call(["rsync", "-avz", remote, localdir])
     localdir += "apps/"
-        
+
+    buildtop = os.environ['ANDROID_BUILD_TOP']
+    if os.environ['TARGET_PRODUCT'] == 'aosp_x86': 
+        devicemk = open(buildtop + "/build/target/product/generic_no_telephony.mk", "wb")
+    elif os.environ['TARGET_PRODUCT'] == 'manta':
+        devicemk = open(buildtop + "/device/samsung/manta/device.mk", "wb")
+    else:
+        raise Exception("Hmmm... don't know this device... Aborting...")
+
+    devicemk.write("\n PRODUCT_PACKAGES += \\\n");
+
     androidmk = open(localdir + "Android.mk", "wb")
     androidmk.write("LOCAL_PATH := $(call my-dir)\n\n")
-
-    devicemk = open("/home/ywata/workspace/build/target/product/generic_no_telephony.mk", "wb")
-    devicemk.write("\n PRODUCT_PACKAGES += \\\n");
 
     apks = os.listdir(localdir)
     for apk in apks:
@@ -44,4 +51,8 @@ try:
 
 except KeyboardInterrupt:
     sys.exit()
-
+except KeyError:
+    print ("Did you call 'lunch' before running this script?")
+    sys.exit()
+except Exception:
+    sys.exit()
