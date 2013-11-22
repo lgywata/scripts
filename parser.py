@@ -2,37 +2,29 @@ import threading
 import xml.etree.ElementTree as ET
 
 class myThread (threading.Thread):
-    def __init__(self, filepath, total):
+    def __init__(self, filepath, failures):
         threading.Thread.__init__(self)
         self.filepath = filepath
-        self.total = total
+        self.failures = failures
 
     def run(self):
-        parsexml(self.filepath, self.total)
+        parsexml(self.filepath, self.failures)
 
-total_1 = []
-total_2 = []
-
-def parsexml(filepath, total):
+def parsexml(filepath, failures):
     tree = ET.parse(filepath)
     root = tree.getroot()
-    packages = []
-    tests = []
-    results = []
     for package in root.findall('TestPackage'):
-        packages.append(package.get('name'))
+        packname = package.get('name')
         for test in package.getiterator('Test'):
             if test.get('result') == 'fail':
-                tests.append(test.get('name'))
-                results.append(test.get('result'))
-        packages.append(tests)
-        packages.append(results)
-        total.append(packages)
-        break
-    
+                testname = test.get('name')
+                failures.append(packname + '|' + testname)
 
-file1 = myThread('testResult.xml', total_1)
-file2 = myThread('testResult.xml', total_2)
+aosp = []
+intel = []
+
+file1 = myThread('/home/ywata/cts/cts-manta/without_patches/testResult.xml', aosp)
+file2 = myThread('/home/ywata/cts/cts-manta/with_patches/testResult.xml', intel)
 
 file1.start()
 file2.start()
@@ -40,12 +32,22 @@ file2.start()
 file1.join()
 file2.join()
 
-for index, val in enumerate(total_1):
-    print val[2]
-    if 'false' not in val[2]:
-        print "No failures for package: ", val[0]
-    else:
-        print "poutz..."
-    break
+intelfailures = 0
 
-print "Finished!\n"
+for t in intel:
+    if t not in aosp:
+        print t
+        intelfailures += 1
+
+print "\nIntel failures only:", intelfailures
+
+print "\n====================================================================\n"
+
+aospfailures = 0
+
+for t in aosp:
+    if t not in intel:
+        print t
+        aospfailures += 1
+
+print "\nAOSP failures only:", aospfailures
